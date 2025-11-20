@@ -1,50 +1,71 @@
 package iuh.fit.se.ui.teacher;
 
 
+import entity.Exam;
 import iuh.fit.se.controller.ClientController;
 
 import javax.swing.*;
 import java.awt.*;
+import java.rmi.RemoteException;
+import java.util.List;
 
 public class ExamManagerUI extends JFrame {
 
-    private ClientController controller;
-    private DefaultListModel<String> model;
+    private final ClientController controller;
+    private final DefaultListModel<Exam> model;
+    private final JList<Exam> list;
 
     public ExamManagerUI(ClientController controller) {
         this.controller = controller;
 
         setTitle("Quản lý đề thi");
-        setSize(600, 500);
+        setSize(800, 600);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
         model = new DefaultListModel<>();
-        JList<String> list = new JList<>(model);
+        list = new JList<>(model);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         JButton btnAdd = new JButton("Tạo đề thi");
-        btnAdd.addActionListener(e -> new ExamEditorUI(controller, null).setVisible(true));
+        btnAdd.addActionListener(e -> new ExamEditorUI(controller, null, this::loadData).setVisible(true));
 
-        JButton btnEdit = new JButton("Sửa");
+        JButton btnEdit = new JButton("Sửa đề thi");
         btnEdit.addActionListener(e -> {
-            String selected = list.getSelectedValue();
+            Exam selected = list.getSelectedValue();
             if (selected != null)
-                new ExamEditorUI(controller, selected).setVisible(true);
+                new ExamEditorUI(controller, selected, this::loadData).setVisible(true);
+            else
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn một đề thi để sửa.");
         });
 
-        JButton btnDelete = new JButton("Xóa");
-        btnDelete.addActionListener(e -> {
-            String selected = list.getSelectedValue();
-            if (selected == null) return;
-            int id = Integer.parseInt(selected.split(":")[0]);
+        JButton btnDelete = new JButton("Xóa đề thi");
+        btnDelete.addActionListener(e -> deleteExam());
 
-            controller.send("DELETE_EXAM;" + id);
-            loadData();
+        JButton btnManageQuestions = new JButton("Quản lý câu hỏi");
+        btnManageQuestions.addActionListener(e -> {
+            Exam selected = list.getSelectedValue();
+            if (selected != null) {
+                try {
+                    new ExamQuestionSelectorUI(controller, selected.getId()).setVisible(true);
+                } catch (RemoteException ex) {
+                    JOptionPane.showMessageDialog(this, "Lỗi khi mở màn hình quản lý câu hỏi: " + ex.getMessage());
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn một đề thi.");
+            }
         });
 
-        JPanel btnPanel = new JPanel(new GridLayout(1, 3, 10, 10));
+        JButton btnRefresh = new JButton("Làm mới");
+        btnRefresh.addActionListener(e -> loadData());
+
+        JPanel btnPanel = new JPanel(new GridLayout(1, 5, 10, 10));
+        btnPanel.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
         btnPanel.add(btnAdd);
         btnPanel.add(btnEdit);
         btnPanel.add(btnDelete);
+        btnPanel.add(btnManageQuestions);
+        btnPanel.add(btnRefresh);
 
         add(new JScrollPane(list), BorderLayout.CENTER);
         add(btnPanel, BorderLayout.SOUTH);
@@ -54,56 +75,35 @@ public class ExamManagerUI extends JFrame {
 
     private void loadData() {
         try {
-            controller.send("GET_ALL_EXAMS");
-            String response = controller.receive();
-
             model.clear();
-            for (String ex : response.split("\\|")) model.addElement(ex);
+            List<Exam> exams = controller.getAllExams();
+            for (Exam ex : exams) model.addElement(ex);
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Không tải được danh sách!");
+            JOptionPane.showMessageDialog(this, "Không tải được danh sách đề thi: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    public ExamManagerUI() throws HeadlessException {
-        setTitle("Quản lý đề thi");
-        setSize(600, 500);
-        setLocationRelativeTo(null);
+    private void deleteExam() {
+        Exam selected = list.getSelectedValue();
+        if (selected == null) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một đề thi để xóa.");
+            return;
+        }
 
-        model = new DefaultListModel<>();
-        JList<String> list = new JList<>(model);
+        int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa đề thi này?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
 
-        JButton btnAdd = new JButton("Tạo đề thi");
-        btnAdd.addActionListener(e -> new ExamEditorUI(controller, null).setVisible(true));
-
-        JButton btnEdit = new JButton("Sửa");
-        btnEdit.addActionListener(e -> {
-            String selected = list.getSelectedValue();
-            if (selected != null)
-                new ExamEditorUI(controller, selected).setVisible(true);
-        });
-
-        JButton btnDelete = new JButton("Xóa");
-        btnDelete.addActionListener(e -> {
-            String selected = list.getSelectedValue();
-            if (selected == null) return;
-            int id = Integer.parseInt(selected.split(":")[0]);
-
-            controller.send("DELETE_EXAM;" + id);
+        try {
+            controller.deleteExam(selected.getId());
             loadData();
-        });
-
-        JPanel btnPanel = new JPanel(new GridLayout(1, 3, 10, 10));
-        btnPanel.add(btnAdd);
-        btnPanel.add(btnEdit);
-        btnPanel.add(btnDelete);
-
-        add(new JScrollPane(list), BorderLayout.CENTER);
-        add(btnPanel, BorderLayout.SOUTH);
-
-        loadData();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi xóa đề thi: " + ex.getMessage());
+            ex.printStackTrace();
+        }
     }
-
-
 }
 

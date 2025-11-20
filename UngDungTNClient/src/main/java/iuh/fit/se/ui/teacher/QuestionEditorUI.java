@@ -1,6 +1,7 @@
 package iuh.fit.se.ui.teacher;
 
 
+import entity.Question;
 import iuh.fit.se.controller.ClientController;
 
 import javax.swing.*;
@@ -8,32 +9,38 @@ import java.awt.*;
 
 public class QuestionEditorUI extends JFrame {
 
-    private ClientController controller;
-    private JTextArea txtQuestion;
-    private JTextField txtA, txtB, txtC, txtD;
-    private JComboBox<String> cbCorrect;
+    private final ClientController controller;
+    private final JTextArea txtQuestion;
+    private final JTextField txtA, txtB, txtC, txtD;
+    private final JComboBox<String> cbCorrect;
+    private final Runnable onSaveCallback;
 
-    private Integer editingId = null;
+    private Question editingQuestion = null;
 
-    public QuestionEditorUI(ClientController controller, String questionData) {
+    public QuestionEditorUI(ClientController controller, Question question, Runnable onSaveCallback) {
         this.controller = controller;
+        this.editingQuestion = question;
+        this.onSaveCallback = onSaveCallback;
 
-        setTitle(questionData == null ? "Thêm câu hỏi" : "Sửa câu hỏi");
-        setSize(600, 600);
+        setTitle(question == null ? "Thêm câu hỏi" : "Sửa câu hỏi");
+        setSize(600, 400);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
         txtQuestion = new JTextArea(4, 20);
+        txtQuestion.setLineWrap(true);
+        txtQuestion.setWrapStyleWord(true);
         txtA = new JTextField();
         txtB = new JTextField();
         txtC = new JTextField();
         txtD = new JTextField();
         cbCorrect = new JComboBox<>(new String[]{"A", "B", "C", "D"});
 
-        if (questionData != null) {
-            loadEditingQuestion(questionData);
+        if (editingQuestion != null) {
+            loadEditingQuestion();
         }
 
-        JPanel panel = new JPanel(new GridLayout(7, 2, 10, 10));
+        JPanel panel = new JPanel(new GridLayout(6, 2, 10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         panel.add(new JLabel("Nội dung:"));
@@ -52,33 +59,61 @@ public class QuestionEditorUI extends JFrame {
         add(btnSave, BorderLayout.SOUTH);
     }
 
-    private void loadEditingQuestion(String data) {
-        String[] parts = data.split(";");
-
-        editingId = Integer.parseInt(parts[0].split(":")[0]);
-        txtQuestion.setText(parts[1]);
-        txtA.setText(parts[2]);
-        txtB.setText(parts[3]);
-        txtC.setText(parts[4]);
-        txtD.setText(parts[5]);
-        cbCorrect.setSelectedItem(parts[6]);
+    private void loadEditingQuestion() {
+        txtQuestion.setText(editingQuestion.getContent());
+        txtA.setText(editingQuestion.getOptionA());
+        txtB.setText(editingQuestion.getOptionB());
+        txtC.setText(editingQuestion.getOptionC());
+        txtD.setText(editingQuestion.getOptionD());
+        cbCorrect.setSelectedItem(editingQuestion.getCorrectAnswer());
     }
 
     private void save() {
+        String content = txtQuestion.getText().trim();
+        String optA = txtA.getText().trim();
+        String optB = txtB.getText().trim();
+        String optC = txtC.getText().trim();
+        String optD = txtD.getText().trim();
 
-        String msg =
-                (editingId == null ? "ADD_QUESTION;" : "UPDATE_QUESTION;") +
-                        (editingId == null ? "" : editingId + ";") +
-                        txtQuestion.getText() + ";" +
-                        txtA.getText() + ";" +
-                        txtB.getText() + ";" +
-                        txtC.getText() + ";" +
-                        txtD.getText() + ";" +
-                        cbCorrect.getSelectedItem();
+        if (content.isEmpty() || optA.isEmpty() || optB.isEmpty() || optC.isEmpty() || optD.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin.");
+            return;
+        }
 
-        controller.send(msg);
+        try {
+            Question questionToSave;
+            if (editingQuestion == null) {
+                // Creating a new question
+                questionToSave = new Question();
+            } else {
+                // Updating an existing question
+                questionToSave = editingQuestion;
+            }
 
-        JOptionPane.showMessageDialog(this, "Đã lưu!");
-        dispose();
+            questionToSave.setContent(content);
+            questionToSave.setOptionA(optA);
+            questionToSave.setOptionB(optB);
+            questionToSave.setOptionC(optC);
+            questionToSave.setOptionD(optD);
+            questionToSave.setCorrectAnswer((String) cbCorrect.getSelectedItem());
+
+            if (editingQuestion == null) {
+                controller.addQuestion(questionToSave);
+                JOptionPane.showMessageDialog(this, "Đã thêm câu hỏi thành công!");
+            } else {
+                controller.updateQuestion(questionToSave);
+                JOptionPane.showMessageDialog(this, "Đã cập nhật câu hỏi thành công!");
+            }
+            
+            // Trigger refresh in QuestionManagerUI
+            if(onSaveCallback != null) {
+                onSaveCallback.run();
+            }
+
+            dispose();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi lưu câu hỏi: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

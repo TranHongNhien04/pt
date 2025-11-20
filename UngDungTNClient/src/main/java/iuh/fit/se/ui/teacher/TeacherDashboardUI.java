@@ -10,6 +10,7 @@ public class TeacherDashboardUI extends JFrame {
     public TeacherDashboardUI(ClientController controller) {
         setTitle("Trang giáo viên");
         setSize(450, 250);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
         JButton btnQuestions = new JButton("Quản lý câu hỏi");
@@ -18,26 +19,11 @@ public class TeacherDashboardUI extends JFrame {
         JButton btnExams = new JButton("Quản lý đề thi");
         btnExams.addActionListener(e -> new ExamManagerUI(controller).setVisible(true));
 
-        setLayout(new GridLayout(3, 1, 10, 10));
-        add(btnQuestions);
-        add(btnExams);
+        JPanel panel = new JPanel(new GridLayout(2, 1, 10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
+        panel.add(btnQuestions);
+        panel.add(btnExams);
+
+        add(panel);
     }
-
-    public TeacherDashboardUI() throws HeadlessException {
-        setTitle("Trang giáo viên");
-        setSize(450, 250);
-        setLocationRelativeTo(null);
-
-        JButton btnQuestions = new JButton("Quản lý câu hỏi");
-        btnQuestions.addActionListener(e -> new QuestionManagerUI().setVisible(true));
-
-        JButton btnExams = new JButton("Quản lý đề thi");
-        btnExams.addActionListener(e -> new ExamManagerUI().setVisible(true));
-
-        setLayout(new GridLayout(3, 1, 10, 10));
-        add(btnQuestions);
-        add(btnExams);
-    }
-
-
 }
