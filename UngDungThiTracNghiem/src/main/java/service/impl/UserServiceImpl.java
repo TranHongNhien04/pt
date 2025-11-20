@@ -13,4 +13,9 @@ public class UserServiceImpl extends GenericServiceImpl<User,Long> implements Us
         super(userDao);
         this.userDao = userDao;
     }
+
+    @Override
+    public User findByUsername(String s) throws RemoteException {
+        return userDao.findByUsername(s);
+    }
 }
